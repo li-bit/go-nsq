@@ -595,7 +595,7 @@ func (c *Conn) writeLoop() {
 
 exit:
 	c.wg.Done()
-	c.log(LogLevelPanic, "writeLoop exiting")
+	c.log(LogLevelCritical, "writeLoop exiting")
 }
 
 func (c *Conn) close() {
