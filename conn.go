@@ -549,7 +549,7 @@ exit:
 		c.log(LogLevelWarning, "delaying close, %d outstanding messages", messagesInFlight)
 	}
 	c.wg.Done()
-	c.log(LogLevelInfo, "readLoop exiting")
+	c.log(LogLevelPanic, "readLoop exiting")
 }
 
 func (c *Conn) writeLoop() {
@@ -602,7 +602,7 @@ func (c *Conn) writeLoop() {
 
 exit:
 	c.wg.Done()
-	c.log(LogLevelInfo, "writeLoop exiting")
+	c.log(LogLevelPanic, "writeLoop exiting")
 }
 
 func (c *Conn) close() {

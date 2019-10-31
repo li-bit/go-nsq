@@ -15,6 +15,7 @@ const (
 	LogLevelInfo
 	LogLevelWarning
 	LogLevelError
+	LogLevelPanic
 )
 
 // String returns the string form for a given LogLevel
@@ -26,6 +27,8 @@ func (lvl LogLevel) String() string {
 		return "WRN"
 	case LogLevelError:
 		return "ERR"
+	case LogLevelPanic:
+		return "PANIC"
 	}
 	return "DBG"
 }
