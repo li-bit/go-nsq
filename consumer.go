@@ -617,8 +617,6 @@ func (r *Consumer) DisconnectFromNSQD(addr string) error {
 	} else if pendingOk {
 		pendingConn.Close()
 	}
-	delete(r.connections, addr)
-	delete(r.pendingConnections, addr)
 	return nil
 }
 

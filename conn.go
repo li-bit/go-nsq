@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -487,19 +488,23 @@ func (c *Conn) readLoop() {
 
 		frameType, data, err := ReadUnpackedResponse(c)
 		if err != nil {
-			c.log(LogLevelError, "ReadUnpackedResponse fail,err=%v", err.Error())
-			c.close()
-			continue
+			c.log(LogLevelError, "ReadUnpackedResponse error - %s", err)
+			if err == io.EOF && atomic.LoadInt32(&c.closeFlag) == 1 {
+				goto exit
+			}
+			if !strings.Contains(err.Error(), "use of closed network connection") {
+				c.delegate.OnIOError(c, err)
+			}
+			goto exit
 		}
 
 		if frameType == FrameTypeResponse && bytes.Equal(data, []byte("_heartbeat_")) {
-			c.log(LogLevelDebug, "heartbeat received")
 			c.delegate.OnHeartbeat(c)
 			err := c.WriteCommand(Nop())
 			if err != nil {
-				c.log(LogLevelError, "heartbeat fail,err=%v", err.Error())
-				c.close()
-				continue
+				c.log(LogLevelError, "heartbeat fail,err=%v", err)
+				c.delegate.OnIOError(c, err)
+				goto exit
 			}
 			continue
 		}
@@ -511,7 +516,8 @@ func (c *Conn) readLoop() {
 			msg, err := DecodeMessage(data)
 			if err != nil {
 				c.log(LogLevelError, "DecodeMessage fail,err=%v", err.Error())
-				continue
+				c.delegate.OnIOError(c, err)
+				goto exit
 			}
 			msg.Delegate = delegate
 			msg.NSQDAddress = c.String()
@@ -640,6 +646,7 @@ func (c *Conn) cleanup() {
 	<-c.drainReady
 	ticker := time.NewTicker(100 * time.Millisecond)
 	lastWarning := time.Now()
+	foreceRelease := time.Now()
 	// writeLoop has exited, drain any remaining in flight messages
 	for {
 		// we're racing with readLoop which potentially has a message
@@ -656,6 +663,11 @@ func (c *Conn) cleanup() {
 			if time.Now().Sub(lastWarning) > time.Second {
 				c.log(LogLevelWarning, "draining... waiting for %d messages in flight", msgsInFlight)
 				lastWarning = time.Now()
+			}
+			if time.Now().Sub(foreceRelease) > 120*time.Second {
+				c.log(LogLevelError, "force release,has %d messages in flight", msgsInFlight)
+				msgsInFlight = atomic.LoadInt64(&c.messagesInFlight)
+				foreceRelease = time.Now()
 			}
 			continue
 		}
