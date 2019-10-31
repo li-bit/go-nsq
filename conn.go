@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -488,14 +487,9 @@ func (c *Conn) readLoop() {
 
 		frameType, data, err := ReadUnpackedResponse(c)
 		if err != nil {
-			if err == io.EOF && atomic.LoadInt32(&c.closeFlag) == 1 {
-				goto exit
-			}
-			if !strings.Contains(err.Error(), "use of closed network connection") {
-				c.log(LogLevelError, "IO error - %s", err)
-				c.delegate.OnIOError(c, err)
-			}
-			goto exit
+			c.log(LogLevelError, "ReadUnpackedResponse fail,err=%v", err.Error())
+			c.close()
+			continue
 		}
 
 		if frameType == FrameTypeResponse && bytes.Equal(data, []byte("_heartbeat_")) {
@@ -503,9 +497,9 @@ func (c *Conn) readLoop() {
 			c.delegate.OnHeartbeat(c)
 			err := c.WriteCommand(Nop())
 			if err != nil {
-				c.log(LogLevelError, "IO error - %s", err)
-				c.delegate.OnIOError(c, err)
-				goto exit
+				c.log(LogLevelError, "heartbeat fail,err=%v", err.Error())
+				c.close()
+				continue
 			}
 			continue
 		}
@@ -516,9 +510,8 @@ func (c *Conn) readLoop() {
 		case FrameTypeMessage:
 			msg, err := DecodeMessage(data)
 			if err != nil {
-				c.log(LogLevelError, "IO error - %s", err)
-				c.delegate.OnIOError(c, err)
-				goto exit
+				c.log(LogLevelError, "DecodeMessage fail,err=%v", err.Error())
+				continue
 			}
 			msg.Delegate = delegate
 			msg.NSQDAddress = c.String()
@@ -549,7 +542,7 @@ exit:
 		c.log(LogLevelWarning, "delaying close, %d outstanding messages", messagesInFlight)
 	}
 	c.wg.Done()
-	c.log(LogLevelPanic, "readLoop exiting")
+	c.log(LogLevelCritical, "readLoop exiting")
 }
 
 func (c *Conn) writeLoop() {
