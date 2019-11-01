@@ -957,6 +957,17 @@ func (r *Consumer) sendRDY(c *Conn, count int64) error {
 	return nil
 }
 
+func (r *Consumer) GetMsgInFlight() int64 {
+	conns := r.conns()
+	var msgInFlight int64
+	for _, conn := range conns {
+		msgInFlight += conn.messagesInFlight
+	}
+	return msgInFlight
+}
+func (r *Consumer) GetRunningHandlerNum() int32 {
+	return r.runningHandlers
+}
 func (r *Consumer) redistributeRDY() {
 	if r.inBackoffTimeout() {
 		return
@@ -1055,7 +1066,7 @@ func (r *Consumer) Stop() {
 
 func (r *Consumer) stopHandlers() {
 	r.stopHandler.Do(func() {
-		r.log(LogLevelInfo, "stopping handlers")
+		r.log(LogLevelError, "stopping handlers")
 		close(r.incomingMessages)
 	})
 }
@@ -1117,7 +1128,7 @@ func (r *Consumer) handlerLoop(handler Handler) {
 	}
 
 exit:
-	r.log(LogLevelDebug, "stopping Handler")
+	r.log(LogLevelError, "stopping Handler")
 	if atomic.AddInt32(&r.runningHandlers, -1) == 0 {
 		r.exit()
 	}
