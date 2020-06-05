@@ -277,6 +277,10 @@ func (r *Consumer) getMaxInFlight() int32 {
 	return atomic.LoadInt32(&r.maxInFlight)
 }
 
+func (r *Consumer) GetMaxInFlight() int32 {
+	return atomic.LoadInt32(&r.maxInFlight)
+}
+
 // ChangeMaxInFlight sets a new maximum number of messages this comsumer instance
 // will allow in-flight, and updates all existing connections as appropriate.
 //
