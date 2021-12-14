@@ -23,10 +23,14 @@ type producerConn interface {
 // and will lazily connect to that instance (and re-connect)
 // when Publish commands are executed.
 type Producer struct {
-	id     int64
-	addr   string
-	conn   producerConn
-	config Config
+	state               int32
+	concurrentProducers int32
+	stopFlag            int32
+	_                   int32
+	id                  int64
+	addr                string
+	conn                producerConn
+	config              Config
 
 	logger   logger
 	logLvl   LogLevel
@@ -38,13 +42,10 @@ type Producer struct {
 
 	transactionChan chan *ProducerTransaction
 	transactions    []*ProducerTransaction
-	state           int32
 
-	concurrentProducers int32
-	stopFlag            int32
-	exitChan            chan int
-	wg                  sync.WaitGroup
-	guard               sync.Mutex
+	exitChan chan int
+	wg       sync.WaitGroup
+	guard    sync.Mutex
 }
 
 // ProducerTransaction is returned by the async publish methods
