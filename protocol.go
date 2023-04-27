@@ -34,7 +34,7 @@ func IsValidChannelName(name string) bool {
 }
 
 func isValidName(name string) bool {
-	if len(name) > 64 || len(name) < 1 {
+	if len(name) > 128 || len(name) < 1 {
 		return false
 	}
 	return validTopicChannelNameRegex.MatchString(name)
